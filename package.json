@@ -1,0 +1,43 @@
+{
+  "name": "transit",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@hownetworks/ipv46": "^2.1.0",
+    "@types/micromatch": "^4.0.9",
+    "@types/node": "^22.7.9",
+    "mc-chat-format": "^1.2.2",
+    "micromatch": "^4.0.8",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
+    "proxy-protocol-js": "^4.0.6",
+    "socket.io-client": "^4.8.1",
+    "typescript-result": "^3.0.0",
+    "uint8array-extras": "^1.4.0",
+    "unborn-mcproto": "^0.13.0",
+    "uuidv4": "^6.2.13",
+    "yaml": "^2.6.0",
+    "zod": "^3.23.8",
+    "zod-validation-error": "^3.4.0"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --hot src/index.ts",
+    "build-linux-x64": "bun build --compile --minify --sourcemap --target=bun-linux-x64 src/index.ts --outfile bin/transit-linux-x64",
+    "build-linux-arm64": "bun build --compile --minify --sourcemap --target=bun-linux-arm64 src/index.ts --outfile bin/transit-linux-arm64",
+    "build-darwin-x64": "bun build --compile --minify --sourcemap --target=bun-darwin-x64 src/index",
+    "build-darwin-arm64": "bun build --compile --minify --sourcemap --target=bun-darwin-arm64 src/index.ts --outfile bin/transit-darwin-arm64",
+    "build-windows-x64": "bun build --compile --minify --sourcemap --target=bun-windows-x64 src/index.ts --outfile bin/transit-windows-x64.exe",
+    "build-all": "bun run build-linux-x64 && bun run build-linux-arm64 && bun run build-darwin-x64 && bun run build-darwin-arm64 && bun run build-windows-x64",
+    "build": "bun build --compile --minify --sourcemap src/index.ts --outfile transit"
+  },
+  "patchedDependencies": {
+    "@hownetworks/ipv46@2.1.0": "patches/@hownetworks%2Fipv46@2.1.0.patch"
+  }
+}

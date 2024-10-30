@@ -1,0 +1,123 @@
+import pino, { type Logger } from 'pino'
+import { ConfigSchema, IOError, loadConfig, saveConfig } from './config'
+import { watch, type FSWatcher } from 'fs'
+import pretty from 'pino-pretty'
+import { MinecraftProxy } from './proxy'
+import { fromError } from 'zod-validation-error'
+import { PluginLoader } from './plugins'
+// import { getGitCommitHash } from './macros/getGitCommitHash' with { type: 'macro' }
+
+export type TransitLogger = Logger<'packet', boolean>
+
+declare global {
+	var logger: TransitLogger
+	var configWatcher: FSWatcher | null
+	var pluginLoader: PluginLoader
+}
+
+// Bun build 不允许顶层 await，因此使用 async function 包裹
+async function main() {
+	globalThis.logger = pino(
+		{
+			customLevels: {
+				packet: 5,
+			},
+		},
+		pretty({
+			colorize: true,
+			translateTime: true,
+			ignore: 'pid,hostname',
+		})
+	)
+
+	const minecraftProxy = new MinecraftProxy()
+
+	logger.info(`Transit Proxy by Ikaleio`)
+
+	let resultLoadConfig = await loadConfig('./config.yml')
+	if (resultLoadConfig.isError()) {
+		if (resultLoadConfig.error instanceof IOError) {
+			logger.warn(`Config file not found, creating a new one...`)
+			const defaultConfig = ConfigSchema.parse({
+				routes: [
+					{
+						host: '*',
+						destination: 'mc.hypixel.net',
+						rewriteHost: true,
+					},
+				],
+			})
+			const { motd, ...defaultConfigWithoutMotd } = defaultConfig
+			const saveConfigResult = await saveConfig(
+				'./config.yml',
+				defaultConfigWithoutMotd
+			)
+			if (saveConfigResult.isError()) {
+				const errorStr = fromError(saveConfigResult.error).message
+				logger.error(`Failed to create default config file: ${errorStr}`)
+				process.exit(1)
+			}
+			resultLoadConfig = await loadConfig('./config.yml')
+		} else {
+			const errorStr = fromError(resultLoadConfig.error).message
+			logger.error(`Failed to load config: ${errorStr}`)
+			process.exit(1)
+		}
+	}
+
+	let config = resultLoadConfig.value!
+	logger.level = config.logger.level
+	logger.info('Config file loaded & validated')
+
+	globalThis.pluginLoader = new PluginLoader()
+	pluginLoader.loadPlugins('./plugins', config)
+
+	minecraftProxy.reload({
+		inbound: config.inbound,
+	})
+
+	// 监听配置文件变化
+	let reloadLock = false
+	let debounceTimeout: NodeJS.Timer | null = null
+
+	const setupConfigWatcher = () => {
+		if (globalThis.configWatcher) {
+			globalThis.configWatcher.close()
+		}
+		globalThis.configWatcher = watch('./config.yml', async event => {
+			if (reloadLock) return
+			if (debounceTimeout) clearTimeout(debounceTimeout)
+
+			debounceTimeout = setTimeout(async () => {
+				reloadLock = true
+				logger.info(`Config file changed (event=${event})`)
+				const resultLoadConfig = await loadConfig('./config.yml')
+				if (resultLoadConfig.isError()) {
+					const errorStr = fromError(resultLoadConfig.error).message
+					logger.error(`Failed to load config: ${errorStr}`)
+					return
+				}
+				config = resultLoadConfig.value!
+
+				logger.level = config.logger.level
+				minecraftProxy.reload({
+					inbound: config.inbound,
+				})
+				await pluginLoader.loadPlugins('./plugins', config)
+
+				logger.info('Config file reloaded & validated')
+				reloadLock = false
+			}, 100)
+		})
+	}
+
+	setupConfigWatcher()
+
+	const [bindingAddress, bindingPort] = config.inbound.bind.split(':')
+
+	minecraftProxy.listenPort(bindingAddress, parseInt(bindingPort))
+
+	logger.info(`Listening on ${bindingAddress}:${bindingPort}`)
+}
+
+main()

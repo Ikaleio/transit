@@ -1,0 +1,8 @@
+inbound:
+  bind: 0.0.0.0:25565
+routes:
+  - host: a.example.com
+    destination: 127.0.0.1:25566
+  - host: b.example.com
+    destination: mc.hypixel.net
+    rewriteHost: true

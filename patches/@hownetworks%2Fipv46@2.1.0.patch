@@ -1,0 +1,22 @@
+diff --git a/dist/ipv46.d.ts b/dist/ipv46.d.ts
+index 715b1110d69075e587d3859af8e9ca9f7bd59b21..b39923e2ed4ce9f381c76167d19e58c94694908c 100644
+--- a/dist/ipv46.d.ts
++++ b/dist/ipv46.d.ts
+@@ -2,7 +2,7 @@ export declare class IPv4 {
+     static parse(string: string): IPv4 | null;
+     static cmp(a: IPv4, b: IPv4): number;
+     readonly version = 4;
+-    private readonly _bytes;
++    public readonly _bytes;
+     private _string;
+     private constructor();
+     toString(): string;
+@@ -12,7 +12,7 @@ export declare class IPv6 {
+     static parse(string: string): IPv6 | null;
+     static cmp(a: IPv6, b: IPv6): number;
+     readonly version = 6;
+-    private readonly _words;
++    public readonly _words;
+     private _string;
+     private constructor();
+     toString(): string;
