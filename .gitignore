@@ -18,7 +18,8 @@ lerna-debug.log*
 .pnpm-debug.log*
 
 # Caches
-
+docs/.vitepress/cache
+docs/.vitepress/dist
 .cache
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
