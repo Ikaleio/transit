@@ -36,7 +36,7 @@ jobs:
         run: |
           mv bin/transit-linux-x64 bin/transit-${VERSION}-linux-x64
           mv bin/transit-linux-arm64 bin/transit-${VERSION}-linux-arm64
-          mv bin/transit-windows-x64 bin/transit-${VERSION}-windows-x64
+          mv bin/transit-windows-x64.exe bin/transit-${VERSION}-windows-x64.exe
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v1
@@ -44,7 +44,7 @@ jobs:
           files: |
             bin/transit-${VERSION}-linux-x64
             bin/transit-${VERSION}-linux-arm64
-            bin/transit-${VERSION}-windows-x64
+            bin/transit-${VERSION}-windows-x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_HASH: ${{ github.sha }}
