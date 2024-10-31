@@ -51,7 +51,6 @@ jobs:
             exit 1
           fi
       - name: Create release and upload assets
-        if: steps.set_version.outputs.VERSION != ''
         uses: softprops/action-gh-release@v1
         with:
           tag_name: 'v${{ env.VERSION }}'
