@@ -49,3 +49,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT_HASH: ${{ github.sha }}
+
+      - name: Extract version from commit message
+        id: extract_version
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          if [[ $COMMIT_MESSAGE =~ release:\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          else
+            echo "No version found in commit message"
+            exit 1
+          fi
+
+      - name: Create tag
+        run: |
+          git tag -a "v${VERSION}" -m "Release version ${VERSION}"
+          git push origin "v${VERSION}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
