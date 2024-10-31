@@ -5,7 +5,7 @@ import pretty from 'pino-pretty'
 import { MinecraftProxy } from './proxy'
 import { fromError } from 'zod-validation-error'
 import { PluginLoader } from './plugins'
-// import { getGitCommitHash } from './macros/getGitCommitHash' with { type: 'macro' }
+import { getGitCommitHash } from './macros/getGitCommitHash' with { type: 'macro' }
 
 export type TransitLogger = Logger<'packet', boolean>
 
@@ -32,7 +32,7 @@ async function main() {
 
 	const minecraftProxy = new MinecraftProxy()
 
-	logger.info(`Transit Proxy by Ikaleio`)
+	logger.info(`Transit Proxy by Ikaleio (build: ${await getGitCommitHash()})`)
 
 	let resultLoadConfig = await loadConfig('./config.yml')
 	if (resultLoadConfig.isError()) {

@@ -1,0 +1,50 @@
+name: Build and Release Transit
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Set version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: |
+          mkdir -p bin
+          bun run build-linux-x64
+          bun run build-linux-arm64
+          bun run build-windows-x64
+
+      - name: Rename build files
+        run: |
+          mv bin/transit-linux-x64 bin/transit-${VERSION}-linux-x64
+          mv bin/transit-linux-arm64 bin/transit-${VERSION}-linux-arm64
+          mv bin/transit-windows-x64 bin/transit-${VERSION}-windows-x64
+
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bin/transit-${VERSION}-linux-x64
+            bin/transit-${VERSION}-linux-arm64
+            bin/transit-${VERSION}-windows-x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_HASH: ${{ github.sha }}
