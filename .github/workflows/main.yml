@@ -7,37 +7,40 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Set env.COMMIT_HASH
+        run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-          
+
       - name: Install dependencies
         run: bun install
-        
+
       - name: Build
         run: |
           mkdir -p bin
           bun run build-linux-x64
           bun run build-linux-arm64
           bun run build-windows-x64
-        
+
       - name: Upload Linux x64
         uses: actions/upload-artifact@v4
         with:
           name: transit-linux-x64
           path: bin/transit-linux-x64
-          
+
       - name: Upload Linux ARM64
         uses: actions/upload-artifact@v4
         with:
           name: transit-linux-arm64
           path: bin/transit-linux-arm64
-          
+
       - name: Upload Windows x64
         uses: actions/upload-artifact@v4
         with:

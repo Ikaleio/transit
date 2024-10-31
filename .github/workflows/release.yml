@@ -1,5 +1,8 @@
 name: Build and Release Transit
 
+permissions:
+  contents: write
+
 on:
   push:
     branches:
@@ -9,8 +12,9 @@ on:
 
 jobs:
   build:
+    if: >
+      startsWith(github.event.head_commit.message, 'release: v')
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -19,8 +23,19 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Set version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      - name: Set env.COMMIT_HASH
+        run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Extract version from commit message
+        id: extract_version
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          if [[ $COMMIT_MESSAGE =~ release:\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          else
+            echo "No version found in commit message"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: bun install
@@ -34,17 +49,17 @@ jobs:
 
       - name: Rename build files
         run: |
-          mv bin/transit-linux-x64 bin/transit-${VERSION}-linux-x64
-          mv bin/transit-linux-arm64 bin/transit-${VERSION}-linux-arm64
-          mv bin/transit-windows-x64 bin/transit-${VERSION}-windows-x64
+          mv bin/transit-linux-x64 bin/transit-${{env.VERSION}}-linux-x64
+          mv bin/transit-linux-arm64 bin/transit-${{env.VERSION}}-linux-arm64
+          mv bin/transit-windows-x64.exe bin/transit-${{env.VERSION}}-windows-x64.exe
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: 'v${{env.VERSION}}'
           files: |
-            bin/transit-${VERSION}-linux-x64
-            bin/transit-${VERSION}-linux-arm64
-            bin/transit-${VERSION}-windows-x64
+            bin/transit-${{env.VERSION}}-linux-x64
+            bin/transit-${{env.VERSION}}-linux-arm64
+            bin/transit-${{env.VERSION}}-windows-x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMIT_HASH: ${{ github.sha }}
