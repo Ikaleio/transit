@@ -20,9 +20,16 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Set version
-        id: set_version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
+      - name: Extract version from commit message
+        id: extract_version
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          if [[ $COMMIT_MESSAGE =~ release:\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          else
+            echo "No version found in commit message"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: bun install
@@ -40,23 +47,13 @@ jobs:
           mv bin/transit-linux-arm64 bin/transit-${VERSION}-linux-arm64
           mv bin/transit-windows-x64.exe bin/transit-${VERSION}-windows-x64.exe
 
-      - name: Extract version from commit message
-        id: extract_version
-        run: |
-          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          if [[ $COMMIT_MESSAGE =~ release:\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
-            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
-          else
-            echo "No version found in commit message"
-            exit 1
-          fi
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: 'v${{ env.VERSION }}'
+          tag_name: 'v${VERSION}'
           files: |
-            bin/transit-${{ env.VERSION }}-linux-x64
-            bin/transit-${{ env.VERSION }}-linux-arm64
-            bin/transit-${{ env.VERSION }}-windows-x64.exe
+            bin/transit-${VERSION}-linux-x64
+            bin/transit-${VERSION}-linux-arm64
+            bin/transit-${VERSION}-windows-x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
