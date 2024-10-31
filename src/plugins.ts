@@ -158,6 +158,7 @@ export class PluginLoader {
 
 		if (!(await fs.stat(pluginsDirectory).catch(() => false))) {
 			logger.warn(`Plugins directory not found: ${pluginsDirectory}`)
+			return
 		}
 
 		const files = await fs.readdir(pluginsDirectory)
