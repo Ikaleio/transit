@@ -43,17 +43,17 @@ jobs:
 
       - name: Rename build files
         run: |
-          mv bin/transit-linux-x64 bin/transit-${VERSION}-linux-x64
-          mv bin/transit-linux-arm64 bin/transit-${VERSION}-linux-arm64
-          mv bin/transit-windows-x64.exe bin/transit-${VERSION}-windows-x64.exe
+          mv bin/transit-linux-x64 bin/transit-${{env.VERSION}}-linux-x64
+          mv bin/transit-linux-arm64 bin/transit-${{env.VERSION}}-linux-arm64
+          mv bin/transit-windows-x64.exe bin/transit-${{env.VERSION}}-windows-x64.exe
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: 'v${VERSION}'
+          tag_name: 'v${{env.VERSION}}'
           files: |
-            bin/transit-${VERSION}-linux-x64
-            bin/transit-${VERSION}-linux-arm64
-            bin/transit-${VERSION}-windows-x64.exe
+            bin/transit-${{env.VERSION}}-linux-x64
+            bin/transit-${{env.VERSION}}-linux-arm64
+            bin/transit-${{env.VERSION}}-windows-x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
