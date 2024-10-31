@@ -5,6 +5,7 @@ export default defineConfig({
 	title: 'Transit',
 	description:
 		'Minecraft reverse proxy software written with TypeScript and Bun.',
+	head: [['script', { src: '/_vercel/insights/script.js', defer: 'true' }]],
 	themeConfig: {
 		// https://vitepress.dev/reference/default-theme-config
 		nav: [
