@@ -28,12 +28,13 @@ jobs:
 
       - name: Get version from commit
         run: |
-          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
-          if [[ $COMMIT_MESSAGE =~ release:\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
-            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
+          VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=release: v)\d+\.\d+\.\d+' || echo '')
+          if [ ! -z "$VERSION" ]; then
+            echo "VERSION=$VERSION" >> $GITHUB_ENV
           else
             echo "No version found in commit message"
             exit 1
+          fi
 
       - name: Install dependencies
         run: bun install
