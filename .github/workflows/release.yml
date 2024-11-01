@@ -26,11 +26,12 @@ jobs:
       - name: Set env.COMMIT_HASH
         run: echo "COMMIT_HASH=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-      - name: Get version from commit
+      - name: Extract version from commit message
+        id: extract_version
         run: |
-          VERSION=$(echo "${{ github.event.head_commit.message }}" | grep -oP '(?<=Release v)\d+\.\d+\.\d+' || echo '')
-          if [ ! -z "$VERSION" ]; then
-            echo "VERSION=$VERSION" >> $GITHUB_ENV
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          if [[ $COMMIT_MESSAGE =~ release:\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "VERSION=${BASH_REMATCH[1]}" >> $GITHUB_ENV
           else
             echo "No version found in commit message"
             exit 1
@@ -48,17 +49,17 @@ jobs:
 
       - name: Rename build files
         run: |
-          mv bin/transit-linux-x64 bin/transit-${{ github.env.VERSION }}-linux-x64
-          mv bin/transit-linux-arm64 bin/transit-${{ github.env.VERSION }}-linux-arm64
-          mv bin/transit-windows-x64.exe bin/transit-${{ github.env.VERSION }}-windows-x64.exe
+          mv bin/transit-linux-x64 bin/transit-${{env.VERSION}}-linux-x64
+          mv bin/transit-linux-arm64 bin/transit-${{env.VERSION}}-linux-arm64
+          mv bin/transit-windows-x64.exe bin/transit-${{env.VERSION}}-windows-x64.exe
 
       - name: Create release and upload assets
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: 'v${{ github.env.VERSION }}'
+          tag_name: 'v${{env.VERSION}}'
           files: |
-            bin/transit-${{ github.env.VERSION }}-linux-x64
-            bin/transit-${{ github.env.VERSION }}-linux-arm64
-            bin/transit-${{ github.env.VERSION }}-windows-x64.exe
+            bin/transit-${{env.VERSION}}-linux-x64
+            bin/transit-${{env.VERSION}}-linux-arm64
+            bin/transit-${{env.VERSION}}-windows-x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
