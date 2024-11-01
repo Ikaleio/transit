@@ -61,6 +61,13 @@ export interface PluginInterface {
 	dispose?(): void | Promise<void> // 可选的清理逻辑
 }
 
+// 载入内置插件
+// 必须显式静态载入 Bun 才会正确打包
+import * as routerPlugin from './builtin-plugins/router'
+
+// 内置插件注册表
+const builtinPlugins: PluginInterface[] = [routerPlugin]
+
 // 插件加载器
 export class PluginLoader {
 	private plugins: PluginInterface[] = []
@@ -73,73 +80,58 @@ export class PluginLoader {
 	}
 	private fullConfig: z.infer<typeof ConfigSchema> = ConfigSchema.parse({}) // 保存完整的配置
 
-	async loadBuiltInPlugins(
+	// 加载单个内置插件
+	private async loadBuiltinPlugin(
+		plugin: PluginInterface,
 		config: z.infer<typeof ConfigSchema>
 	): Promise<void> {
-		const builtinPluginsDir = path.resolve(__dirname, 'builtin-plugins')
-		const builtinFiles = await fs.readdir(builtinPluginsDir)
-		for (const file of builtinFiles) {
-			const ext = path.extname(file)
-			if (
-				ext === '.ts' ||
-				ext === '.js' ||
-				ext === '.cjs' ||
-				ext === '.mjs' ||
-				ext === '.tsx' ||
-				ext === '.jsx'
-			) {
-				const pluginPath = path.resolve(builtinPluginsDir, file)
-				try {
-					// 动态导入插件
-					const pluginModule = await import(pluginPath)
-					const plugin: PluginInterface = pluginModule.default || pluginModule
+		try {
+			// 获取插件的配置
+			let pluginConfig = config.plugins ? config.plugins[plugin.name] || {} : {}
 
-					// 检查插件的基础结构
-					if (!plugin || typeof plugin.apply !== 'function' || !plugin.name) {
-						throw new Error(`Invalid plugin format: ${pluginPath}`)
-					}
-
-					// 获取插件的配置
-					let pluginConfig = config.plugins
-						? config.plugins[plugin.name] || {}
-						: {}
-
-					// 如果插件提供了 ConfigSchema，则验证配置
-					if (plugin.ConfigSchema) {
-						pluginConfig = plugin.ConfigSchema.parse(pluginConfig)
-					}
-
-					// 创建插件的上下文
-					const context: Context = {
-						config: pluginConfig,
-						fullConfig: this.fullConfig, // 传入完整的配置
-						on: (event, handler, pre = false) => {
-							if (this.eventHandlers[event]) {
-								if (pre) {
-									this.eventHandlers[event].unshift(handler)
-								} else this.eventHandlers[event].push(handler)
-							}
-						},
-					}
-
-					// 调用插件的 apply 方法进行初始化
-					await plugin.apply(context)
-
-					// 插件加入已加载列表
-					this.plugins.push(plugin)
-
-					logger.debug(`Builtin plugin loaded: ${plugin.name}`)
-				} catch (e: unknown) {
-					if (e instanceof z.ZodError) {
-						const errorStr = fromError(e).message
-						logger.error(
-							`Failed to load builtin plugin ${pluginPath}: ${errorStr}`
-						)
-					} else {
-						logger.error(e, `Failed to load builtin plugin ${pluginPath}`)
-					}
-				}
+			// 如果插件提供了 ConfigSchema，则验证配置
+			if (plugin.ConfigSchema) {
+				pluginConfig = plugin.ConfigSchema.parse(pluginConfig)
 			}
+
+			// 创建插件的上下文
+			const context: Context = {
+				config: pluginConfig,
+				fullConfig: this.fullConfig,
+				on: (event, handler, pre = false) => {
+					if (this.eventHandlers[event]) {
+						if (pre) {
+							this.eventHandlers[event].unshift(handler)
+						} else this.eventHandlers[event].push(handler)
+					}
+				},
+			}
+
+			// 调用插件的 apply 方法进行初始化
+			await plugin.apply(context)
+
+			// 插件加入已加载列表
+			this.plugins.push(plugin)
+
+			logger.debug(`Builtin plugin loaded: ${plugin.name}`)
+		} catch (e: unknown) {
+			if (e instanceof z.ZodError) {
+				const errorStr = fromError(e).message
+				logger.error(
+					`Failed to load builtin plugin ${plugin.name}: ${errorStr}`
+				)
+			} else {
+				logger.error(e, `Failed to load builtin plugin ${plugin.name}`)
+			}
+		}
+	}
+
+	// 加载所有内置插件
+	private async loadBuiltinPlugins(
+		config: z.infer<typeof ConfigSchema>
+	): Promise<void> {
+		for (const plugin of builtinPlugins) {
+			await this.loadBuiltinPlugin(plugin, config)
 		}
 	}
 
@@ -154,7 +146,7 @@ export class PluginLoader {
 		this.fullConfig = config
 
 		// 加载内置插件
-		await this.loadBuiltInPlugins(config)
+		await this.loadBuiltinPlugins(config)
 
 		if (!(await fs.stat(pluginsDirectory).catch(() => false))) {
 			logger.warn(`Plugins directory not found: ${pluginsDirectory}`)
