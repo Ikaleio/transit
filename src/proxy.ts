@@ -493,8 +493,10 @@ export class MinecraftProxy {
 
 							// 构造握手包
 							const remoteHostWithFML =
-								clientSocket.data.FML! > 0
-									? `${clientSocket.data.realRemoteHost}\0FML${clientSocket.data.FML}\0`
+								clientSocket.data.FML === 1
+									? `${clientSocket.data.realRemoteHost}\0FML\0`
+									: clientSocket.data.FML === 2
+									? `${clientSocket.data.realRemoteHost}\0FML2\0`
 									: clientSocket.data.realRemoteHost!
 							const handshake = new PacketWriter(0x0)
 							handshake.writeVarInt(clientSocket.data.protocol)
