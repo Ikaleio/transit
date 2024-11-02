@@ -1,4 +1,4 @@
-import Bun from 'bun'
+import Bun, { ArrayBufferSink } from 'bun'
 import { IP } from '@hownetworks/ipv46'
 import { PacketReader, PacketWriter, State } from 'unborn-mcproto'
 import { colorHash, packetToHex } from './utils'
@@ -24,10 +24,17 @@ import { LoginResultType } from './plugins'
 	由于 S2C Encryption Request 后的数据包都是加密的，且正版登录时无法进行中间人攻击，因此只能在握手和登录阶段进行解包
 */
 
+// Bun.ArrayBufferSink 的内部缓冲区大小
+const highWaterMark = 64 * 1024 // 64 KiB
+
+// 是否使用微任务队列转发数据包
+// 若为否，每次数据包到达时直接尝试刷新缓冲区
+const useMicrotask = true
+
 // Client to relay socket data
 export type C2RSocketData = {
 	connId: number // 连接 ID，连接建立时随机分配，用于日志
-	sendBuffer: Buffer | null // 发送缓冲区
+	sendBuffer: ArrayBufferSink // 发送缓冲区
 	ppStream: ProxyProtocolPacketStream // Proxy Protocol v2 解包流
 	C2RStream: MinecraftPacketStream // 用于解包握手和登录包
 	remote: Bun.Socket<R2SSocketData> | null // 远程服务器连接
@@ -46,38 +53,27 @@ export type C2RSocketData = {
 // Relay to server socket data
 type R2SSocketData = {
 	client: Bun.Socket<C2RSocketData> | null // 客户端连接
-	sendBuffer: Buffer | null // 发送缓冲区
+	sendBuffer: ArrayBufferSink // 发送缓冲区
 }
 
 const writeToBuffer = (
 	socket: Bun.Socket<C2RSocketData> | Bun.Socket<R2SSocketData>,
 	buffer: Buffer
 ) => {
-	socket.data.sendBuffer = socket.data.sendBuffer
-		? Buffer.concat([socket.data.sendBuffer, buffer])
-		: buffer
-	if (socket.data.sendBuffer.byteLength > 16 * 1024 * 1024) {
-		const connId =
-			'connId' in socket.data
-				? socket.data.connId
-				: socket.data.client!.data.connId!
-		logger.warn(
-			`${colorHash(connId)} Send buffer exceeded 16MB, closing connection`
-		)
-		socket.end()
-	}
-	queueMicrotask(() => sendBuffer(socket))
+	socket.data.sendBuffer.write(buffer)
+	if (useMicrotask) queueMicrotask(() => sendBuffer(socket))
+	else sendBuffer(socket)
 }
 
 const sendBuffer = (
 	socket: Bun.Socket<C2RSocketData> | Bun.Socket<R2SSocketData>
 ) => {
 	if (socket.data.sendBuffer) {
-		const written = socket.write(socket.data.sendBuffer)
-		if (written < socket.data.sendBuffer.byteLength) {
-			socket.data.sendBuffer = socket.data.sendBuffer.subarray(written)
-		} else {
-			socket.data.sendBuffer = null
+		const data = socket.data.sendBuffer.flush() as Uint8Array
+		if (!data) return
+		const written = socket.write(data)
+		if (written < data.byteLength) {
+			socket.data.sendBuffer.write(data.subarray(written))
 		}
 	}
 }
@@ -122,8 +118,13 @@ export class MinecraftProxy {
 				open: async remoteSocket => {
 					remoteSocket.data = {
 						client: clientSocket,
-						sendBuffer: null,
+						sendBuffer: new ArrayBufferSink(),
 					}
+					remoteSocket.data.sendBuffer.start({
+						asUint8Array: true,
+						stream: true,
+						highWaterMark: highWaterMark,
+					})
 					clientSocket.data.remote = remoteSocket
 					logger.debug(
 						`${colorHash(clientSocket.data.connId)} Connected to ${
@@ -177,7 +178,7 @@ export class MinecraftProxy {
 				open: clientSocket => {
 					clientSocket.data = {
 						connId: Math.floor(Math.random() * 100000),
-						sendBuffer: null,
+						sendBuffer: new ArrayBufferSink(),
 						ppStream: new ProxyProtocolPacketStream(),
 						C2RStream: new MinecraftPacketStream(),
 						protocol: 0,
@@ -196,6 +197,13 @@ export class MinecraftProxy {
 					logger.debug(
 						`${colorHash(clientSocket.data.connId)} Connection established`
 					)
+
+					// 初始化发送缓冲区
+					clientSocket.data.sendBuffer.start({
+						asUint8Array: true,
+						stream: true,
+						highWaterMark: highWaterMark,
+					})
 
 					if (!this.inbound.proxyProtocol)
 						clientSocket.data.originIP = IP.parse(clientSocket.remoteAddress)
