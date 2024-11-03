@@ -26,12 +26,12 @@ export type LoaderLoginResult =
 
 type MotdHandler = (
 	ctx: Context,
-	_next: Function
+	_next: Function,
 ) => Promise<z.input<typeof MotdSchema>> | z.input<typeof MotdSchema>
 
 type LoginHandler = (
 	ctx: Context,
-	_next: Function
+	_next: Function,
 ) => Promise<PluginLoginResult> | PluginLoginResult
 
 type Handler = MotdHandler | LoginHandler
@@ -48,7 +48,7 @@ export interface Context {
 	on(
 		event: 'disconnect',
 		handler: (ctx: Context) => Promise<void> | void,
-		pre?: boolean
+		pre?: boolean,
 	): void
 	temp?(callback: Handler): void
 }
@@ -83,7 +83,7 @@ export class PluginLoader {
 	// 加载单个内置插件
 	private async loadBuiltinPlugin(
 		plugin: PluginInterface,
-		config: z.infer<typeof ConfigSchema>
+		config: z.infer<typeof ConfigSchema>,
 	): Promise<void> {
 		try {
 			// 获取插件的配置
@@ -118,7 +118,7 @@ export class PluginLoader {
 			if (e instanceof z.ZodError) {
 				const errorStr = fromError(e).message
 				logger.error(
-					`Failed to load builtin plugin ${plugin.name}: ${errorStr}`
+					`Failed to load builtin plugin ${plugin.name}: ${errorStr}`,
 				)
 			} else {
 				logger.error(e, `Failed to load builtin plugin ${plugin.name}`)
@@ -128,7 +128,7 @@ export class PluginLoader {
 
 	// 加载所有内置插件
 	private async loadBuiltinPlugins(
-		config: z.infer<typeof ConfigSchema>
+		config: z.infer<typeof ConfigSchema>,
 	): Promise<void> {
 		for (const plugin of builtinPlugins) {
 			await this.loadBuiltinPlugin(plugin, config)
@@ -138,7 +138,7 @@ export class PluginLoader {
 	// 加载插件
 	async loadPlugins(
 		pluginsDirectory: string,
-		config: z.infer<typeof ConfigSchema>
+		config: z.infer<typeof ConfigSchema>,
 	): Promise<void> {
 		// 先卸载所有的已存在插件
 		await this.unloadPlugins()
@@ -209,7 +209,7 @@ export class PluginLoader {
 					if (e instanceof z.ZodError) {
 						const errorStr = fromError(e).message
 						logger.error(
-							`Failed to load builtin plugin ${pluginPath}: ${errorStr}`
+							`Failed to load builtin plugin ${pluginPath}: ${errorStr}`,
 						)
 					} else {
 						logger.error(e, `Failed to load builtin plugin ${pluginPath}`)
@@ -223,7 +223,7 @@ export class PluginLoader {
 	async login(
 		host: string,
 		playerName: string,
-		ip: string
+		ip: string,
 	): Promise<LoaderLoginResult> {
 		// 创建临时回调函数队列
 		const tempHandlers: Array<LoginHandler> = []
@@ -284,7 +284,7 @@ export class PluginLoader {
 
 		// 处理 tempHandlers 队列的函数
 		const processTempHandlers = async (
-			index: number
+			index: number,
 		): Promise<LoaderLoginResult> => {
 			if (index >= tempHandlers.length) {
 				return {
@@ -347,7 +347,7 @@ export class PluginLoader {
 
 		// 递归调用事件处理器
 		const _next = async (
-			index: number
+			index: number,
 		): Promise<z.infer<typeof MotdSchema>> => {
 			if (index >= this.eventHandlers['motd'].length) {
 				// 处理 tempHandlers 队列
@@ -370,7 +370,7 @@ export class PluginLoader {
 
 		// 处理 tempHandlers 队列的函数
 		const processTempHandlers = async (
-			index: number
+			index: number,
 		): Promise<z.infer<typeof MotdSchema>> => {
 			if (index >= tempHandlers.length) {
 				// 默认的 MOTD 响应
@@ -400,7 +400,7 @@ export class PluginLoader {
 	async disconnect(
 		host: string,
 		playerName: string,
-		ip: string
+		ip: string,
 	): Promise<void> {
 		// 创建完整的上下文，包括 `on` 方法，提供 host, playerName, ip, config 和 fullConfig
 		const ctx: Context = {
