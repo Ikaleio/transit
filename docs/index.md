@@ -11,7 +11,7 @@ hero:
       text: Get Started
       link: /quick-start
     - theme: alt
-      text: Configuration Format
+      text: Configuration
       link: /config
 
 features:
