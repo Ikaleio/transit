@@ -15,6 +15,7 @@ export default defineConfig({
 				nav: [
 					{ text: 'Home', link: '/' },
 					{ text: 'Config', link: '/config' },
+					{ text: 'Plugin', link: '/plugin' },
 				],
 				sidebar: [
 					{
@@ -24,6 +25,10 @@ export default defineConfig({
 					{
 						text: 'Config Reference',
 						items: [{ text: 'Config Schema', link: '/config' }],
+					},
+					{
+						text: 'Plugin Reference',
+						items: [{ text: 'Plugin System', link: '/plugin' }],
 					},
 				],
 				socialLinks: [
@@ -38,6 +43,7 @@ export default defineConfig({
 				nav: [
 					{ text: '首页', link: '/zh/' },
 					{ text: '配置', link: '/zh/config' },
+					{ text: '插件', link: '/zh/plugin' },
 				],
 				sidebar: [
 					{
@@ -47,6 +53,10 @@ export default defineConfig({
 					{
 						text: '配置参考',
 						items: [{ text: '配置模式', link: '/zh/config' }],
+					},
+					{
+						text: '插件参考',
+						items: [{ text: '插件系统', link: '/zh/plugin' }],
 					},
 				],
 				socialLinks: [

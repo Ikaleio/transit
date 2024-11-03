@@ -58,7 +58,7 @@ type R2SSocketData = {
 
 const writeToBuffer = (
 	socket: Bun.Socket<C2RSocketData> | Bun.Socket<R2SSocketData>,
-	buffer: Buffer
+	buffer: Buffer,
 ) => {
 	socket.data.sendBuffer.write(buffer)
 	if (useMicrotask) queueMicrotask(() => sendBuffer(socket))
@@ -66,7 +66,7 @@ const writeToBuffer = (
 }
 
 const sendBuffer = (
-	socket: Bun.Socket<C2RSocketData> | Bun.Socket<R2SSocketData>
+	socket: Bun.Socket<C2RSocketData> | Bun.Socket<R2SSocketData>,
 ) => {
 	if (socket.data.sendBuffer) {
 		const data = socket.data.sendBuffer.flush() as Uint8Array
@@ -110,7 +110,7 @@ export class MinecraftProxy {
 	// 创建代理到目标服务器的连接
 	private async createR2SConnection(
 		clientSocket: Bun.Socket<C2RSocketData>,
-		initPacket: Buffer
+		initPacket: Buffer,
 	) {
 		await Bun.connect<R2SSocketData>({
 			hostname: clientSocket.data.remoteHost!,
@@ -130,12 +130,12 @@ export class MinecraftProxy {
 					logger.debug(
 						`${colorHash(clientSocket.data.connId)} Connected to ${
 							clientSocket.data.remoteHost
-						}:${clientSocket.data.remotePort}`
+						}:${clientSocket.data.remotePort}`,
 					)
 					logger.packet(
 						`${colorHash(
-							clientSocket.data.connId
-						)} C2S (Handshake) ${packetToHex(initPacket)}`
+							clientSocket.data.connId,
+						)} C2S (Handshake) ${packetToHex(initPacket)}`,
 					)
 					writeToBuffer(clientSocket.data.remote, initPacket)
 				},
@@ -146,7 +146,7 @@ export class MinecraftProxy {
 					logger.packet(
 						`${colorHash(clientSocket.data.connId)} S2C (${
 							buffer.byteLength
-						} Bytes) ${packetToHex(buffer)}`
+						} Bytes) ${packetToHex(buffer)}`,
 					)
 					writeToBuffer(clientSocket, buffer)
 				},
@@ -156,14 +156,14 @@ export class MinecraftProxy {
 				error: (remoteSocket, error) => {
 					logger.error(
 						error,
-						`${colorHash(clientSocket.data.connId)} remote error`
+						`${colorHash(clientSocket.data.connId)} remote error`,
 					)
 					remoteSocket.end()
 				},
 				connectError(remoteSocket, error) {
 					logger.error(
 						error,
-						`${colorHash(clientSocket.data.connId)} remote connect error`
+						`${colorHash(clientSocket.data.connId)} remote connect error`,
 					)
 					remoteSocket.end()
 				},
@@ -196,7 +196,7 @@ export class MinecraftProxy {
 					}
 
 					logger.debug(
-						`${colorHash(clientSocket.data.connId)} Connection established`
+						`${colorHash(clientSocket.data.connId)} Connection established`,
 					)
 
 					// 初始化发送缓冲区
@@ -213,7 +213,7 @@ export class MinecraftProxy {
 					setTimeout(() => {
 						if (clientSocket.data.state === null) {
 							logger.warn(
-								`${colorHash(clientSocket.data.connId)} Handshake timeout`
+								`${colorHash(clientSocket.data.connId)} Handshake timeout`,
 							)
 							clientSocket.end()
 						}
@@ -224,14 +224,14 @@ export class MinecraftProxy {
 						clientSocket.data.remote.end()
 					}
 					logger.debug(
-						`${colorHash(clientSocket.data.connId)} Connection closed`
+						`${colorHash(clientSocket.data.connId)} Connection closed`,
 					)
 
 					if (clientSocket.data.host && clientSocket.data.username) {
 						await globalThis.pluginLoader.disconnect(
 							clientSocket.data.host,
 							clientSocket.data.username,
-							clientSocket.data.originIP!.toString()
+							clientSocket.data.originIP!.toString(),
 						)
 					}
 				},
@@ -239,7 +239,7 @@ export class MinecraftProxy {
 					logger.packet(
 						`${colorHash(clientSocket.data.connId)} C2S (${
 							buffer.byteLength
-						} Bytes) ${packetToHex(buffer)}`
+						} Bytes) ${packetToHex(buffer)}`,
 					)
 
 					// 若已进入游戏状态，则直接转发数据包
@@ -253,10 +253,10 @@ export class MinecraftProxy {
 						if (!(await clientSocket.data.ppStream.push(buffer))) {
 							logger.warn(
 								`${colorHash(
-									clientSocket.data.connId
+									clientSocket.data.connId,
 								)} Invalid packet: Failed to parse Proxy Protocol v2 (from ${
 									clientSocket.remoteAddress
-								})`
+								})`,
 							)
 							clientSocket.end()
 							return
@@ -268,8 +268,8 @@ export class MinecraftProxy {
 							clientSocket.data.originIP = srcIP
 							logger.debug(
 								`${colorHash(
-									clientSocket.data.connId
-								)} Proxy Protocol v2: ${srcIP}`
+									clientSocket.data.connId,
+								)} Proxy Protocol v2: ${srcIP}`,
 							)
 							buffer = clientSocket.data.ppStream.getRest()
 						} else return
@@ -279,8 +279,8 @@ export class MinecraftProxy {
 					if (!(await clientSocket.data.C2RStream.push(buffer))) {
 						logger.warn(
 							`${colorHash(
-								clientSocket.data.connId
-							)} Invalid packet: Max length exceeded (2^21 - 1) Bytes`
+								clientSocket.data.connId,
+							)} Invalid packet: Max length exceeded (2^21 - 1) Bytes`,
 						)
 						clientSocket.end()
 						return
@@ -296,8 +296,8 @@ export class MinecraftProxy {
 							} catch (e) {
 								logger.warn(
 									`${colorHash(
-										clientSocket.data.connId
-									)} Invalid handshake packet`
+										clientSocket.data.connId,
+									)} Invalid handshake packet`,
 								)
 								clientSocket.end()
 								return
@@ -307,8 +307,8 @@ export class MinecraftProxy {
 							if (packetId !== 0x0) {
 								logger.warn(
 									`${colorHash(
-										clientSocket.data.connId
-									)} Invalid handshake packet id: ${packetId}`
+										clientSocket.data.connId,
+									)} Invalid handshake packet id: ${packetId}`,
 								)
 								clientSocket.end()
 							}
@@ -334,20 +334,20 @@ export class MinecraftProxy {
 									clientSocket.data.originIP
 								} -> ${host}:${port} (protocol=${protocol}, state=${nextState}, FML=${
 									clientSocket.data.FML
-								})`
+								})`,
 							)
 
 							if (nextState === State.Status) {
 								const motd = await globalThis.pluginLoader.motd(
 									host,
-									clientSocket.data.originIP!.toString()
+									clientSocket.data.originIP!.toString(),
 								)
 								if (motd) {
 									const motdPacket = new PacketWriter(0x0)
 									motdPacket.writeJSON(buildMotd(motd))
 									clientSocket.write(await buildPacket(motdPacket))
 									logger.info(
-										`${colorHash(clientSocket.data.connId)} Responsed MOTD`
+										`${colorHash(clientSocket.data.connId)} Responsed MOTD`,
 									)
 								}
 							}
@@ -356,8 +356,8 @@ export class MinecraftProxy {
 								// 无效的后继状态
 								logger.warn(
 									`${colorHash(
-										clientSocket.data.connId
-									)} Invalid next state: ${nextState}`
+										clientSocket.data.connId,
+									)} Invalid next state: ${nextState}`,
 								)
 								clientSocket.end()
 							}
@@ -367,7 +367,7 @@ export class MinecraftProxy {
 								setTimeout(() => {
 									if (clientSocket.data.state !== State.Play) {
 										logger.warn(
-											`${colorHash(clientSocket.data.connId)} Login timeout`
+											`${colorHash(clientSocket.data.connId)} Login timeout`,
 										)
 										clientSocket.end()
 									}
@@ -384,7 +384,7 @@ export class MinecraftProxy {
 								login = await clientSocket.data.C2RStream.nextPacket()
 							} catch (e) {
 								logger.warn(
-									`${colorHash(clientSocket.data.connId)} Invalid login packet`
+									`${colorHash(clientSocket.data.connId)} Invalid login packet`,
 								)
 								clientSocket.end()
 								return
@@ -393,8 +393,8 @@ export class MinecraftProxy {
 							if (packetId !== 0x0) {
 								logger.warn(
 									`${colorHash(
-										clientSocket.data.connId
-									)} Invalid login packet id: ${packetId}`
+										clientSocket.data.connId,
+									)} Invalid login packet id: ${packetId}`,
 								)
 								clientSocket.end()
 							}
@@ -402,18 +402,18 @@ export class MinecraftProxy {
 							// >= 1.19.1 还传一个 UUID，但是没用
 							const username = login.readString()
 							logger.info(
-								`${colorHash(clientSocket.data.connId)} Login: ${username}`
+								`${colorHash(clientSocket.data.connId)} Login: ${username}`,
 							)
 							clientSocket.data.username = username
 
 							const loginResult = await globalThis.pluginLoader.login(
 								clientSocket.data.host!,
 								username,
-								clientSocket.data.originIP!.toString()
+								clientSocket.data.originIP!.toString(),
 							)
 							if (loginResult.type === LoginResultType.REJECT) {
 								logger.warn(
-									`${colorHash(clientSocket.data.connId)} Login rejected`
+									`${colorHash(clientSocket.data.connId)} Login rejected`,
 								)
 								clientSocket.end()
 								return
@@ -423,8 +423,8 @@ export class MinecraftProxy {
 								clientSocket.write(await buildPacket(kickPacket)) // 真的还有什么必要等缓存吗？
 								logger.warn(
 									`${colorHash(
-										clientSocket.data.connId
-									)} Kicked while logging in`
+										clientSocket.data.connId,
+									)} Kicked while logging in`,
 								)
 								clientSocket.end()
 								return
@@ -434,7 +434,7 @@ export class MinecraftProxy {
 							const outbound = loginResult.outbound
 							if (!outbound || !outbound.destination) {
 								logger.warn(
-									`${colorHash(clientSocket.data.connId)} No outbound provided`
+									`${colorHash(clientSocket.data.connId)} No outbound provided`,
 								)
 								clientSocket.end()
 								return
@@ -455,8 +455,8 @@ export class MinecraftProxy {
 							if (clientSocket.data.C2RStream.havePacket()) {
 								logger.warn(
 									`${colorHash(
-										clientSocket.data.connId
-									)} Unexpected packet after login packet`
+										clientSocket.data.connId,
+									)} Unexpected packet after login packet`,
 								)
 								clientSocket.end()
 							}
@@ -464,7 +464,7 @@ export class MinecraftProxy {
 							logger.debug(
 								`${colorHash(clientSocket.data.connId)} Connecting to ${
 									clientSocket.data.remoteHost
-								}:${clientSocket.data.remotePort}`
+								}:${clientSocket.data.remotePort}`,
 							)
 
 							// 创建到目标服务器的连接
@@ -474,28 +474,28 @@ export class MinecraftProxy {
 							if (clientSocket.data.proxyProtocol) {
 								// 构造 Proxy Protocol v2 头部
 								const createProxyAddress = (
-									ip: IP
+									ip: IP,
 								): IPv4ProxyAddress | IPv6ProxyAddress => {
 									if (ip.version === 4) {
 										return new IPv4ProxyAddress(
 											IPv4Address.createFrom(ip._bytes),
 											0,
 											IPv4Address.createFrom([0, 0, 0, 0]), // Placeholder for destination IP
-											0 // Placeholder for destination port
+											0, // Placeholder for destination port
 										)
 									} else
 										return new IPv6ProxyAddress(
 											IPv6Address.createFrom(ip._words),
 											0,
 											IPv6Address.createFrom([0, 0, 0, 0, 0, 0, 0, 0]), // Placeholder for destination IP
-											0 // Placeholder for destination port
+											0, // Placeholder for destination port
 										)
 								}
 
 								const pp = new V2ProxyProtocol(
 									Command.LOCAL,
 									TransportProtocol.DGRAM,
-									createProxyAddress(clientSocket.data.originIP!)
+									createProxyAddress(clientSocket.data.originIP!),
 								)
 								headers = Buffer.from(pp.build())
 							}
@@ -504,10 +504,10 @@ export class MinecraftProxy {
 							const remoteHostWithFML = outbound.removeFMLSignature
 								? remoteHost
 								: clientSocket.data.FML === 1
-								? `${clientSocket.data.realRemoteHost}\0FML\0`
-								: clientSocket.data.FML === 2
-								? `${clientSocket.data.realRemoteHost}\0FML2\0`
-								: clientSocket.data.realRemoteHost!
+									? `${clientSocket.data.realRemoteHost}\0FML\0`
+									: clientSocket.data.FML === 2
+										? `${clientSocket.data.realRemoteHost}\0FML2\0`
+										: clientSocket.data.realRemoteHost!
 
 							const handshake = new PacketWriter(0x0)
 							handshake.writeVarInt(clientSocket.data.protocol)
@@ -533,7 +533,7 @@ export class MinecraftProxy {
 				error: (clientSocket, error) => {
 					logger.error(
 						error,
-						`${colorHash(clientSocket.data.connId)} client error`
+						`${colorHash(clientSocket.data.connId)} client error`,
 					)
 				},
 			},

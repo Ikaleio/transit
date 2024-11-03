@@ -69,3 +69,4 @@ Open your Minecraft client, add the server `localhost:25565`, and you should see
 ## Next Steps
 
 - For more details on the configuration file, refer to the [Configuration File](/config) page.
+- For more details on the Transit's plugin system，refer to the [Plugin System](/plugin.md)
