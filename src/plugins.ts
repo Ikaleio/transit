@@ -166,6 +166,9 @@ export class PluginLoader {
 				ext === '.tsx' ||
 				ext === '.jsx'
 			) {
+				if (file.endsWith('.d.ts')) continue
+				if (file.includes('.disabled.')) continue
+
 				const pluginPath = path.resolve(pluginsDirectory, file)
 				try {
 					// 动态导入插件
