@@ -11,7 +11,7 @@ export const apply = (ctx: Context) => {
 
 	ctx.on('login', async (ctx: Context, _next: Function) => {
 		const route = ctx.fullConfig.routes.find(route =>
-			isMatch(ctx.host!, route.host)
+			isMatch(ctx.host!, route.host),
 		)
 		if (route) {
 			logger.info(`Routing ${ctx.host} to ${route.destination}`)
@@ -21,6 +21,7 @@ export const apply = (ctx: Context) => {
 					destination: route.destination,
 					rewriteHost: route.rewriteHost,
 					proxyProtocol: route.proxyProtocol,
+					removeFMLSignature: route.removeFMLSignature,
 				},
 			}
 		}

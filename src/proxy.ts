@@ -93,6 +93,7 @@ export const OutboundSchema = z.union([
 			destination: z.string().nullable(), // 目标服务器地址，如果为 null 则不让连接
 			rewriteHost: z.boolean().default(false),
 			proxyProtocol: z.boolean().default(false),
+			removeFMLSignature: z.boolean().default(false),
 		})
 		.strict(),
 	z.null(),
@@ -500,12 +501,14 @@ export class MinecraftProxy {
 							}
 
 							// 构造握手包
-							const remoteHostWithFML =
-								clientSocket.data.FML === 1
-									? `${clientSocket.data.realRemoteHost}\0FML\0`
-									: clientSocket.data.FML === 2
-									? `${clientSocket.data.realRemoteHost}\0FML2\0`
-									: clientSocket.data.realRemoteHost!
+							const remoteHostWithFML = outbound.removeFMLSignature
+								? remoteHost
+								: clientSocket.data.FML === 1
+								? `${clientSocket.data.realRemoteHost}\0FML\0`
+								: clientSocket.data.FML === 2
+								? `${clientSocket.data.realRemoteHost}\0FML2\0`
+								: clientSocket.data.realRemoteHost!
+
 							const handshake = new PacketWriter(0x0)
 							handshake.writeVarInt(clientSocket.data.protocol)
 							handshake.writeString(remoteHostWithFML)

@@ -81,21 +81,6 @@ Transit 提供了 `rewriteHost` 字段绕过这个检测，它将 Minecraft 的�
 
 ```yml
 routes:
-  - host: 'hypixel.example.com'
-    destination: mc.hypixel.net
-    rewriteHost: true
-```
-
-### 通配符路由
-
-有时你可能希望从多个连接地址进入同一个服务器，又不想把路由配置复制好几份。Transit 提供了一个方便的方案应对这个问题。
-
-路由规则的 `host` 字段提供基于 [micromatch](https://github.com/micromatch/micromatch) 的类 Bash 通配符匹配。
-
-```yml
-routes:
-  # 匹配 hypixel.example.com 的任何子域名
-  - host: '*.hypixel.example.com'
     destination: mc.hypixel.net
     rewriteHost: true
 
@@ -108,6 +93,20 @@ routes:
   # 匹配所有连接地址
   - host: '*'
     destination: 127.0.0.1
+```
+
+### 移除 FML 签名
+
+安装了 Forge Mod Loader (FML) 的客户端会在 Minecraft 握手包中的 `host` 字段附加签名（`\0FML\0` 或 `\0FML2\0`），这可能会导致连接问题。
+
+默认情况下，Transit 会转发 FML 签名。但是你可以使用 `removeFMLSignature` 字段强制移除签名。
+
+```yml
+routes:
+  - host: 'hypixel.example.com'
+    destination: mc.hypixel.net
+    rewriteHost: true
+    removeFMLSignature: true
 ```
 
 ### 链式代理

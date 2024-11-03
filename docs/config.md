@@ -86,6 +86,20 @@ routes:
     rewriteHost: true
 ```
 
+### Removing FML Signature
+
+Clients installed Forge Mod Loader (FML) will append a signature (`\0FML\0` or `\0FML2\0`) on the host in the Minecraft handshake packet, which may cause connection issue.
+
+By default, Transit forwards FML signature. However, you can use the `removeFMLSignature` field to forcely remove the sign.
+
+```yml
+routes:
+  - host: 'hypixel.example.com'
+    destination: mc.hypixel.net
+    rewriteHost: true
+    removeFMLSignature: true
+```
+
 ### Wildcard Routing
 
 Sometimes, you may want to route multiple connection addresses to the same server without duplicating the routing configuration. Transit provides a convenient solution for this.

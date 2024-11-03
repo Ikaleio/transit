@@ -9,6 +9,7 @@
 	"type": "module",
 	"devDependencies": {
 		"@types/bun": "latest",
+		"prettier": "^3.3.3",
 		"vitepress": "^1.4.2"
 	},
 	"peerDependencies": {

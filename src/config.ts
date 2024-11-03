@@ -3,8 +3,7 @@ import * as yaml from 'yaml'
 import * as fs from 'fs/promises'
 import { Result } from 'typescript-result'
 import { MotdSchema } from './motd'
-import { InboundSchema, OutboundSchema } from './proxy'
-import { isMatch } from 'micromatch'
+import { InboundSchema } from './proxy'
 
 export class IOError extends Error {
 	readonly type = 'io-error'
@@ -36,6 +35,7 @@ const RouteSchema = z
 		destination: z.string(),
 		rewriteHost: z.boolean().default(false),
 		proxyProtocol: z.boolean().default(false),
+		removeFMLSignature: z.boolean().default(false),
 	})
 	.strict()
 
@@ -52,7 +52,7 @@ export const ConfigSchema = z
 const readFile = async (path: string) => {
 	return Result.try(
 		() => fs.readFile(path, 'utf-8'),
-		err => new IOError(`Failed to read file: ${path}`, { cause: err })
+		err => new IOError(`Failed to read file: ${path}`, { cause: err }),
 	)
 }
 
@@ -60,7 +60,7 @@ export const loadConfig = async (path: string) => {
 	const result = (await readFile(path))
 		.mapCatching(
 			content => yaml.parse(content),
-			error => new ParseError(`Failed to parse config file`, { cause: error })
+			error => new ParseError(`Failed to parse config file`, { cause: error }),
 		)
 		.mapCatching(ConfigSchema.parse)
 	return result
@@ -68,14 +68,14 @@ export const loadConfig = async (path: string) => {
 
 export const saveConfig = async (
 	path: string,
-	config: z.input<typeof ConfigSchema>
+	config: z.input<typeof ConfigSchema>,
 ) => {
 	const result = Result.try(
 		() => yaml.stringify(config),
-		err => new ParseError(`Failed to stringify config`, { cause: err })
+		err => new ParseError(`Failed to stringify config`, { cause: err }),
 	).mapCatching(
 		async (content: string) => await fs.writeFile(path, content),
-		err => new IOError(`Failed to write file: ${path}`, { cause: err })
+		err => new IOError(`Failed to write file: ${path}`, { cause: err }),
 	)
 	return result
 }
