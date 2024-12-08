@@ -3,7 +3,6 @@ import { IP } from '@hownetworks/ipv46'
 import { PacketReader, PacketWriter, State } from 'unborn-mcproto'
 import { colorHash, packetToHex } from './utils'
 import { z } from 'zod'
-import { type ConfigSchema } from './config'
 import {
 	IPv4ProxyAddress,
 	IPv6ProxyAddress,
@@ -13,7 +12,7 @@ import {
 	Command,
 	TransportProtocol,
 } from 'proxy-protocol-js'
-import { buildMotd, MotdSchema } from './motd'
+import { buildMotd } from './motd'
 import { MinecraftPacketStream, buildPacket } from './protocols/minecraft'
 import { ProxyProtocolPacketStream } from './protocols/proxy'
 import { LoginResultType } from './plugins'
@@ -112,63 +111,72 @@ export class MinecraftProxy {
 		clientSocket: Bun.Socket<C2RSocketData>,
 		initPacket: Buffer,
 	) {
-		await Bun.connect<R2SSocketData>({
-			hostname: clientSocket.data.remoteHost!,
-			port: clientSocket.data.remotePort!,
-			socket: {
-				open: async remoteSocket => {
-					remoteSocket.data = {
-						client: clientSocket,
-						sendBuffer: new ArrayBufferSink(),
-					}
-					remoteSocket.data.sendBuffer.start({
-						asUint8Array: true,
-						stream: true,
-						highWaterMark: highWaterMark,
-					})
-					clientSocket.data.remote = remoteSocket
-					logger.debug(
-						`${colorHash(clientSocket.data.connId)} Connected to ${
-							clientSocket.data.remoteHost
-						}:${clientSocket.data.remotePort}`,
-					)
-					logger.packet(
-						`${colorHash(
-							clientSocket.data.connId,
-						)} C2S (Handshake) ${packetToHex(initPacket)}`,
-					)
-					writeToBuffer(clientSocket.data.remote, initPacket)
+		try {
+			await Bun.connect<R2SSocketData>({
+				hostname: clientSocket.data.remoteHost!,
+				port: clientSocket.data.remotePort!,
+				socket: {
+					open: async remoteSocket => {
+						remoteSocket.data = {
+							client: clientSocket,
+							sendBuffer: new ArrayBufferSink(),
+						}
+						remoteSocket.data.sendBuffer.start({
+							asUint8Array: true,
+							stream: true,
+							highWaterMark: highWaterMark,
+						})
+						clientSocket.data.remote = remoteSocket
+						logger.debug(
+							`${colorHash(clientSocket.data.connId)} Connected to ${
+								clientSocket.data.remoteHost
+							}:${clientSocket.data.remotePort}`,
+						)
+						logger.packet(
+							`${colorHash(
+								clientSocket.data.connId,
+							)} C2S (Handshake) ${packetToHex(initPacket)}`,
+						)
+						writeToBuffer(clientSocket.data.remote, initPacket)
+					},
+					close: remoteSocket => {
+						clientSocket.end()
+					},
+					data: (remoteSocket, buffer) => {
+						logger.packet(
+							`${colorHash(clientSocket.data.connId)} S2C (${
+								buffer.byteLength
+							} Bytes) ${packetToHex(buffer)}`,
+						)
+						writeToBuffer(clientSocket, buffer)
+					},
+					drain: remoteSocket => {
+						sendBuffer(remoteSocket)
+					},
+					error: (remoteSocket, error) => {
+						logger.error(
+							error,
+							`${colorHash(clientSocket.data.connId)} remote error`,
+						)
+						remoteSocket.end()
+						clientSocket.end()
+					},
+					connectError(remoteSocket, error) {
+						logger.error(
+							error,
+							`${colorHash(clientSocket.data.connId)} remote connect error`,
+						)
+						remoteSocket.end()
+						clientSocket.end()
+					},
 				},
-				close: remoteSocket => {
-					clientSocket.end()
-				},
-				data: (remoteSocket, buffer) => {
-					logger.packet(
-						`${colorHash(clientSocket.data.connId)} S2C (${
-							buffer.byteLength
-						} Bytes) ${packetToHex(buffer)}`,
-					)
-					writeToBuffer(clientSocket, buffer)
-				},
-				drain: remoteSocket => {
-					sendBuffer(remoteSocket)
-				},
-				error: (remoteSocket, error) => {
-					logger.error(
-						error,
-						`${colorHash(clientSocket.data.connId)} remote error`,
-					)
-					remoteSocket.end()
-				},
-				connectError(remoteSocket, error) {
-					logger.error(
-						error,
-						`${colorHash(clientSocket.data.connId)} remote connect error`,
-					)
-					remoteSocket.end()
-				},
-			},
-		})
+			})
+		} catch (e) {
+			logger.error(
+				e,
+				`${colorHash(clientSocket.data.connId)} remote connect error, catched outside of socket`,
+			)
+		}
 	}
 
 	listenPort(bindingAddress: string, bindingPort: number) {

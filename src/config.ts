@@ -39,12 +39,19 @@ const RouteSchema = z
 	})
 	.strict()
 
+const FlagSchema = z
+	.object({
+		proxyProtocolOptional: z.boolean().default(false),
+	})
+	.strict()
+
 export const ConfigSchema = z
 	.object({
 		logger: loggerSchema.default(loggerSchema.parse({})),
 		inbound: InboundSchema.default(InboundSchema.parse({})),
 		routes: z.array(RouteSchema).default([]),
 		motd: MotdSchema.default(MotdSchema.parse({})),
+		flags: FlagSchema.default(FlagSchema.parse({})),
 		plugins: z.any().nullable().default(undefined), // 必须在运行时推导
 	})
 	.strict()

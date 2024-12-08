@@ -27,7 +27,7 @@ async function main() {
 			colorize: true,
 			translateTime: true,
 			ignore: 'pid,hostname',
-		})
+		}),
 	)
 
 	const minecraftProxy = new MinecraftProxy()
@@ -47,10 +47,10 @@ async function main() {
 					},
 				],
 			})
-			const { motd, ...defaultConfigWithoutMotd } = defaultConfig
+			const { motd, flags, ...defaultConfigToSave } = defaultConfig
 			const saveConfigResult = await saveConfig(
 				'./config.yml',
-				defaultConfigWithoutMotd
+				defaultConfigToSave,
 			)
 			if (saveConfigResult.isError()) {
 				const errorStr = fromError(saveConfigResult.error).message
