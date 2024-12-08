@@ -231,12 +231,6 @@ export class MinecraftProxy {
 						FML: null,
 					}
 
-					const controller = new ConnectionController(clientSocket)
-					globalThis.pluginLoader.registerConnection(
-						clientSocket.data.host!,
-						controller,
-					)
-
 					logger.debug(
 						`${colorHash(clientSocket.data.connId)} Connection established`,
 					)
@@ -271,8 +265,6 @@ export class MinecraftProxy {
 					logger.debug(
 						`${colorHash(clientSocket.data.connId)} Connection closed`,
 					)
-
-					globalThis.pluginLoader.unregisterConnection(clientSocket.data.host!)
 
 					if (clientSocket.data.host && clientSocket.data.username) {
 						await globalThis.pluginLoader.disconnect(
@@ -471,6 +463,7 @@ export class MinecraftProxy {
 								clientSocket.data.host!,
 								username,
 								clientSocket.data.originIP!.toString(),
+								() => clientSocket.end(),
 							)
 							if (loginResult.type === LoginResultType.REJECT) {
 								logger.warn(
@@ -559,7 +552,7 @@ export class MinecraftProxy {
 								headers = Buffer.from(pp.build())
 							}
 
-							// 构造��手包
+							// 构造握手包
 							const remoteHostWithFML = outbound.removeFMLSignature
 								? remoteHost
 								: clientSocket.data.FML === 1
