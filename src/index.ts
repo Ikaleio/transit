@@ -74,6 +74,7 @@ async function main() {
 
 	minecraftProxy.reload({
 		inbound: config.inbound,
+		flags: config.flags,
 	})
 
 	// 监听配置文件变化
