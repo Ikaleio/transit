@@ -100,6 +100,7 @@ export const OutboundSchema = z.union([
 
 // Minecraft 代理
 export class MinecraftProxy {
+	onlinePlayers: Set<string> = new Set()
 	inbound: z.infer<typeof InboundSchema> = InboundSchema.parse({})
 	proxyProtocolOptional = false
 
@@ -148,6 +149,12 @@ export class MinecraftProxy {
 						writeToBuffer(clientSocket.data.remote, initPacket)
 					},
 					close: remoteSocket => {
+						clientSocket.end()
+					},
+					end: remoteSocket => {
+						clientSocket.end()
+					},
+					timeout: remoteSocket => {
 						clientSocket.end()
 					},
 					data: (remoteSocket, buffer) => {
@@ -236,6 +243,9 @@ export class MinecraftProxy {
 					}, 3000)
 				},
 				close: async clientSocket => {
+					if (clientSocket.data.username) {
+						this.onlinePlayers.delete(clientSocket.data.username)
+					}
 					if (clientSocket.data.remote) {
 						clientSocket.data.remote.end()
 					}
@@ -372,7 +382,9 @@ export class MinecraftProxy {
 								)
 								if (motd) {
 									const motdPacket = new PacketWriter(0x0)
-									motdPacket.writeJSON(buildMotd(motd))
+									motdPacket.writeJSON(
+										buildMotd(motd, this.onlinePlayers.size, protocol),
+									)
 									clientSocket.write(await buildPacket(motdPacket))
 									logger.info(
 										`${colorHash(clientSocket.data.connId)} Responsed MOTD`,
@@ -477,8 +489,6 @@ export class MinecraftProxy {
 								? remoteHost
 								: clientSocket.data.host!
 
-							// TODO: 用户名验证
-
 							// 缓冲区中不应该还有数据包
 							if (clientSocket.data.C2RStream.havePacket()) {
 								logger.warn(
@@ -551,6 +561,7 @@ export class MinecraftProxy {
 
 							await this.createR2SConnection(clientSocket, headers)
 
+							this.onlinePlayers.add(username)
 							clientSocket.data.state = State.Play
 						}
 					}

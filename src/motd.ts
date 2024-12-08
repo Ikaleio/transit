@@ -33,13 +33,13 @@ export const MotdSchema = z
 		version: z
 			.object({
 				name: z.string().default('Transit'),
-				protocol: z.number().default(47), // 1.8.x
+				protocol: z.union([z.number(), z.literal('auto')]).default('auto'),
 			})
 			.default({}),
 		players: z
 			.object({
 				max: z.number().default(20),
-				online: z.number().default(0),
+				online: z.union([z.number(), z.literal('auto')]).default('auto'),
 				sample: z
 					.array(
 						z.union([
@@ -48,7 +48,7 @@ export const MotdSchema = z
 								id: z.string(),
 							}),
 							z.string(),
-						])
+						]),
 					)
 					.transform(sample => {
 						return sample.map(player => {
@@ -69,6 +69,16 @@ export const MotdSchema = z
 	})
 	.default({})
 
-export const buildMotd = (motd: z.infer<typeof MotdSchema>) => {
+export const buildMotd = (
+	motd: z.infer<typeof MotdSchema>,
+	onlinePlayers: number,
+	protocol: number,
+) => {
+	if (motd.players.online === 'auto') {
+		motd.players.online = onlinePlayers
+	}
+	if (motd.version.protocol === 'auto') {
+		motd.version.protocol = protocol
+	}
 	return motd
 }
