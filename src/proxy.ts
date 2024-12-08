@@ -101,9 +101,17 @@ export const OutboundSchema = z.union([
 // Minecraft 代理
 export class MinecraftProxy {
 	inbound: z.infer<typeof InboundSchema> = InboundSchema.parse({})
+	proxyProtocolOptional = false
 
-	reload(config: { inbound?: z.infer<typeof InboundSchema> }) {
+	reload(config: {
+		inbound?: z.infer<typeof InboundSchema>
+		flags?: { proxyProtocolOptional?: boolean }
+	}) {
 		if (config.inbound) this.inbound = config.inbound
+		if (config.flags) {
+			if (config.flags.proxyProtocolOptional)
+				this.proxyProtocolOptional = config.flags.proxyProtocolOptional
+		}
 	}
 
 	// 创建代理到目标服务器的连接
@@ -217,7 +225,7 @@ export class MinecraftProxy {
 					if (!this.inbound.proxyProtocol)
 						clientSocket.data.originIP = IP.parse(clientSocket.remoteAddress)
 
-					// 若 15 秒内未成功读取握手包，则断开连接
+					// 若 3 秒内未成功读取握手包，则断开连接
 					setTimeout(() => {
 						if (clientSocket.data.state === null) {
 							logger.warn(
@@ -225,7 +233,7 @@ export class MinecraftProxy {
 							)
 							clientSocket.end()
 						}
-					}, 15000)
+					}, 3000)
 				},
 				close: async clientSocket => {
 					if (clientSocket.data.remote) {
@@ -259,28 +267,40 @@ export class MinecraftProxy {
 					// 处理 Proxy Protocol v2 头部
 					if (!clientSocket.data.originIP) {
 						if (!(await clientSocket.data.ppStream.push(buffer))) {
-							logger.warn(
-								`${colorHash(
-									clientSocket.data.connId,
-								)} Invalid packet: Failed to parse Proxy Protocol v2 (from ${
-									clientSocket.remoteAddress
-								})`,
-							)
-							clientSocket.end()
-							return
-						}
-						if (clientSocket.data.ppStream.valid()) {
-							const srcIP =
-								clientSocket.data.ppStream.decode() ??
-								IP.parse(clientSocket.remoteAddress)
+							if (!this.proxyProtocolOptional) {
+								logger.warn(
+									`${colorHash(
+										clientSocket.data.connId,
+									)} Invalid packet: Failed to parse Proxy Protocol v2 (from ${
+										clientSocket.remoteAddress
+									})`,
+								)
+								clientSocket.end()
+								return
+							}
+							// 未启用 Proxy Protocol，直接解析为客户端 IP
+							const srcIP = IP.parse(clientSocket.remoteAddress)
 							clientSocket.data.originIP = srcIP
 							logger.debug(
 								`${colorHash(
 									clientSocket.data.connId,
-								)} Proxy Protocol v2: ${srcIP}`,
+								)} Proxy Protocol v2 bypassed: ${srcIP}`,
 							)
 							buffer = clientSocket.data.ppStream.getRest()
-						} else return
+						} else {
+							if (clientSocket.data.ppStream.valid()) {
+								const srcIP =
+									clientSocket.data.ppStream.decode() ??
+									IP.parse(clientSocket.remoteAddress)
+								clientSocket.data.originIP = srcIP
+								logger.debug(
+									`${colorHash(
+										clientSocket.data.connId,
+									)} Proxy Protocol v2: ${srcIP}`,
+								)
+								buffer = clientSocket.data.ppStream.getRest()
+							} else return
+						}
 					}
 
 					// 加入解包缓存
@@ -371,7 +391,7 @@ export class MinecraftProxy {
 							}
 
 							if (nextState === State.Login) {
-								// 若 15 秒内未成功读取登录包，则断开连接
+								// 若 3 秒内未成功读取登录包，则断开连接
 								setTimeout(() => {
 									if (clientSocket.data.state !== State.Play) {
 										logger.warn(
@@ -379,7 +399,7 @@ export class MinecraftProxy {
 										)
 										clientSocket.end()
 									}
-								}, 15000)
+								}, 3000)
 							}
 						}
 					} // 考虑一次发送两个数据包，应当直接在后面处理登录
