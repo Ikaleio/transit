@@ -2,7 +2,7 @@ import { z } from 'zod'
 import fs from 'fs/promises'
 import path from 'path'
 import { Component, MotdSchema } from './motd'
-import { OutboundSchema } from './proxy'
+import { ConnectionController, OutboundSchema } from './proxy'
 import { fromError } from 'zod-validation-error'
 import { ConfigSchema } from './config'
 
@@ -51,6 +51,9 @@ export interface Context {
 		pre?: boolean,
 	): void
 	temp?(callback: Handler): void
+	registerConnection(host: string, controller: ConnectionController): void
+	unregisterConnection(host: string): void
+	getConnectionController(host: string): ConnectionController | undefined
 }
 
 // 插件的接口
@@ -79,6 +82,7 @@ export class PluginLoader {
 		motd: [],
 	}
 	private fullConfig: z.infer<typeof ConfigSchema> = ConfigSchema.parse({}) // 保存完整的配置
+	private connectionControllers: Map<string, ConnectionController> = new Map()
 
 	// 加载单个内置插件
 	private async loadBuiltinPlugin(
@@ -105,6 +109,9 @@ export class PluginLoader {
 						} else this.eventHandlers[event].push(handler)
 					}
 				},
+				registerConnection: this.registerConnection.bind(this),
+				unregisterConnection: this.unregisterConnection.bind(this),
+				getConnectionController: this.getConnectionController.bind(this),
 			}
 
 			// 调用插件的 apply 方法进行初始化
@@ -199,6 +206,9 @@ export class PluginLoader {
 								} else this.eventHandlers[event].push(handler)
 							}
 						},
+						registerConnection: this.registerConnection.bind(this),
+						unregisterConnection: this.unregisterConnection.bind(this),
+						getConnectionController: this.getConnectionController.bind(this),
 					}
 
 					// 调用插件的 apply 方法进行初始化
@@ -233,6 +243,9 @@ export class PluginLoader {
 
 		// 创建完整的上下文，包括 temp 方法
 		const ctx: Context = {
+			registerConnection: this.registerConnection.bind(this),
+			unregisterConnection: this.unregisterConnection.bind(this),
+			getConnectionController: this.getConnectionController.bind(this),
 			host,
 			playerName,
 			ip,
@@ -333,6 +346,9 @@ export class PluginLoader {
 
 		// 创建完整的上下文，包括 temp 方法
 		const ctx: Context = {
+			registerConnection: this.registerConnection.bind(this),
+			unregisterConnection: this.unregisterConnection.bind(this),
+			getConnectionController: this.getConnectionController.bind(this),
 			host,
 			ip,
 			fullConfig: this.fullConfig, // 传入完整的配置
@@ -418,6 +434,9 @@ export class PluginLoader {
 					} else this.eventHandlers[event].push(handler)
 				}
 			},
+			registerConnection: this.registerConnection.bind(this),
+			unregisterConnection: this.unregisterConnection.bind(this),
+			getConnectionController: this.getConnectionController.bind(this),
 		}
 
 		for (const handler of this.eventHandlers['disconnect']) {
@@ -447,5 +466,17 @@ export class PluginLoader {
 			disconnect: [],
 			motd: [],
 		}
+	}
+
+	registerConnection(host: string, controller: ConnectionController) {
+		this.connectionControllers.set(host, controller)
+	}
+
+	unregisterConnection(host: string) {
+		this.connectionControllers.delete(host)
+	}
+
+	getConnectionController(host: string): ConnectionController | undefined {
+		return this.connectionControllers.get(host)
 	}
 }
