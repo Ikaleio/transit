@@ -102,6 +102,7 @@ async function main() {
 				logger.level = config.logger.level
 				minecraftProxy.reload({
 					inbound: config.inbound,
+					flags: config.flags,
 				})
 				await pluginLoader.loadPlugins('./plugins', config)
 
