@@ -6,6 +6,7 @@ import { MinecraftProxy } from './proxy'
 import { fromError } from 'zod-validation-error'
 import { PluginLoader } from './plugins'
 import { getGitCommitHash } from './macros/getGitCommitHash' with { type: 'macro' }
+import { generateHeapSnapshot } from 'bun'
 
 export type TransitLogger = Logger<'packet', boolean>
 
@@ -120,6 +121,17 @@ async function main() {
 	minecraftProxy.listenPort(bindingAddress, parseInt(bindingPort))
 
 	logger.info(`Listening on ${bindingAddress}:${bindingPort}`)
+
+	// 每小时生成并存储内存快照
+	setInterval(async () => {
+		const snapshot = generateHeapSnapshot()
+		const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+		await Bun.write(
+			`dump/heap-${timestamp}.json`,
+			JSON.stringify(snapshot, null, 2),
+		)
+		logger.info(`Heap snapshot saved at dump/heap-${timestamp}.json`)
+	}, 3600000) // 3600000 毫秒 = 1 小时
 }
 
 main()
