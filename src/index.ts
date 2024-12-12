@@ -122,8 +122,7 @@ async function main() {
 
 	logger.info(`Listening on ${bindingAddress}:${bindingPort}`)
 
-	// 每小时生成并存储内存快照
-	setInterval(async () => {
+	const saveHeapSnapshot = async () => {
 		const snapshot = generateHeapSnapshot()
 		const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
 		await Bun.write(
@@ -131,7 +130,11 @@ async function main() {
 			JSON.stringify(snapshot, null, 2),
 		)
 		logger.info(`Heap snapshot saved at dump/heap-${timestamp}.json`)
-	}, 3600000) // 3600000 毫秒 = 1 小时
+	}
+
+	await saveHeapSnapshot()
+	// 每小时生成并存储内存快照
+	setInterval(saveHeapSnapshot, 3600000) // 3600000 毫秒 = 1 小时
 }
 
 main()

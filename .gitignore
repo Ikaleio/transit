@@ -3,6 +3,7 @@
 bin/
 logs/
 plugins/
+dump/
 config.yml
 transit
 transit.exe
