@@ -47,12 +47,14 @@ export type C2RSocketData = {
 	originIP: IP | null // 客户端 IP 地址（若开启 ProxyProtocol 入站，从其中解析）
 	proxyProtocol: boolean | null // 是否启用 Proxy Protocol v2 出站
 	FML: 0 | 1 | 2 | null // 是否为 Forge Mod Loader (2) 客户端，0 代表非 FML
+	timeouts: NodeJS.Timer[] // 存储所有的 timeout
 }
 
 // Relay to server socket data
 type R2SSocketData = {
 	client: Bun.Socket<C2RSocketData> | null // 客户端连接
 	sendBuffer: ArrayBufferSink // 发送缓冲区
+	timeouts: NodeJS.Timer[] // 存储所有的 timeout
 }
 
 const writeToBuffer = (
@@ -75,6 +77,10 @@ const sendBuffer = (
 			socket.data.sendBuffer.write(data.subarray(written))
 		}
 	}
+}
+
+const clearAllTimeouts = (timeouts: NodeJS.Timer[]) => {
+	timeouts.forEach(timeout => clearTimeout(timeout))
 }
 
 export const InboundSchema = z
@@ -142,6 +148,7 @@ export class MinecraftProxy {
 						remoteSocket.data = {
 							client: clientSocket,
 							sendBuffer: new ArrayBufferSink(),
+							timeouts: [],
 						}
 						remoteSocket.data.sendBuffer.start({
 							asUint8Array: true,
@@ -162,6 +169,7 @@ export class MinecraftProxy {
 						writeToBuffer(clientSocket.data.remote, initPacket)
 					},
 					close: remoteSocket => {
+						remoteSocket.data.sendBuffer.end()
 						clientSocket.end()
 					},
 					end: remoteSocket => {
@@ -229,6 +237,7 @@ export class MinecraftProxy {
 						originIP: null,
 						proxyProtocol: null,
 						FML: null,
+						timeouts: [],
 					}
 
 					logger.debug(
@@ -246,7 +255,7 @@ export class MinecraftProxy {
 						clientSocket.data.originIP = IP.parse(clientSocket.remoteAddress)
 
 					// 若 3 秒内未成功读取握手包，则断开连接
-					setTimeout(() => {
+					const handshakeTimeout = setTimeout(() => {
 						if (clientSocket.data.state === null) {
 							logger.warn(
 								`${colorHash(clientSocket.data.connId)} Handshake timeout`,
@@ -254,8 +263,11 @@ export class MinecraftProxy {
 							clientSocket.end()
 						}
 					}, 3000)
+					clientSocket.data.timeouts.push(handshakeTimeout)
 				},
 				close: async clientSocket => {
+					clientSocket.data.sendBuffer.end()
+					clearAllTimeouts(clientSocket.data.timeouts)
 					if (clientSocket.data.username) {
 						this.onlinePlayers.delete(clientSocket.data.username)
 					}
@@ -417,7 +429,7 @@ export class MinecraftProxy {
 
 							if (nextState === State.Login) {
 								// 若 3 秒内未成功读取登录包，则断开连接
-								setTimeout(() => {
+								const loginTimeout = setTimeout(() => {
 									if (clientSocket.data.state !== State.Play) {
 										logger.warn(
 											`${colorHash(clientSocket.data.connId)} Login timeout`,
@@ -425,6 +437,7 @@ export class MinecraftProxy {
 										clientSocket.end()
 									}
 								}, 3000)
+								clientSocket.data.timeouts.push(loginTimeout)
 							}
 						}
 					} // 考虑一次发送两个数据包，应当直接在后面处理登录

@@ -6,7 +6,7 @@ import { MinecraftProxy } from './proxy'
 import { fromError } from 'zod-validation-error'
 import { PluginLoader } from './plugins'
 import { getGitCommitHash } from './macros/getGitCommitHash' with { type: 'macro' }
-import { generateHeapSnapshot } from 'bun'
+import { heapStats } from 'bun:jsc'
 
 export type TransitLogger = Logger<'packet', boolean>
 
@@ -30,6 +30,10 @@ async function main() {
 			ignore: 'pid,hostname',
 		}),
 	)
+
+	// setInterval(() => {
+	// 	logger.info(heapStats())
+	// }, 5000)
 
 	const minecraftProxy = new MinecraftProxy()
 
