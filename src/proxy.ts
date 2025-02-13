@@ -33,6 +33,7 @@ const useMicrotask = true
 // Client to relay socket data
 export type C2RSocketData = {
 	connId: number // 连接 ID，连接建立时随机分配，用于日志
+	hasPendingMacroTask: boolean, // 是否有未完成的宏任务
 	sendBuffer: ArrayBufferSink // 发送缓冲区
 	ppStream: ProxyProtocolPacketStream // Proxy Protocol v2 解包流
 	C2RStream: MinecraftPacketStream // 用于解包握手和登录包
@@ -53,6 +54,7 @@ export type C2RSocketData = {
 // Relay to server socket data
 type R2SSocketData = {
 	client: Bun.Socket<C2RSocketData> | null // 客户端连接
+	hasPendingMacroTask: boolean, // 是否有未完成的宏任务
 	sendBuffer: ArrayBufferSink // 发送缓冲区
 	timeouts: NodeJS.Timer[] // 存储所有的 timeout
 }
@@ -62,8 +64,12 @@ const writeToBuffer = (
 	buffer: Buffer,
 ) => {
 	socket.data.sendBuffer.write(buffer)
-	if (useMicrotask) queueMicrotask(() => sendBuffer(socket))
-	else sendBuffer(socket)
+	if (useMicrotask) {
+		if (!socket.data.hasPendingMacroTask) {
+			socket.data.hasPendingMacroTask = true
+			queueMicrotask(() => sendBuffer(socket))
+		}
+	} else sendBuffer(socket)
 }
 
 const sendBuffer = (
@@ -71,11 +77,15 @@ const sendBuffer = (
 ) => {
 	if (socket.data.sendBuffer) {
 		const data = socket.data.sendBuffer.flush() as Uint8Array
-		if (!data) return
+		if (!data) {
+			socket.data.hasPendingMacroTask = false
+			return
+		}
 		const written = socket.write(data)
 		if (written < data.byteLength) {
 			socket.data.sendBuffer.write(data.subarray(written))
 		}
+		socket.data.hasPendingMacroTask = false
 	}
 }
 
@@ -147,6 +157,7 @@ export class MinecraftProxy {
 					open: async remoteSocket => {
 						remoteSocket.data = {
 							client: clientSocket,
+							hasPendingMacroTask: false,
 							sendBuffer: new ArrayBufferSink(),
 							timeouts: [],
 						}
@@ -223,6 +234,7 @@ export class MinecraftProxy {
 				open: clientSocket => {
 					clientSocket.data = {
 						connId: Math.floor(Math.random() * 100000),
+						hasPendingMacroTask: false,
 						sendBuffer: new ArrayBufferSink(),
 						ppStream: new ProxyProtocolPacketStream(),
 						C2RStream: new MinecraftPacketStream(),
