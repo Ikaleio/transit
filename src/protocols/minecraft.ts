@@ -35,14 +35,14 @@ const decodeVarInt = (buffer: Buffer, offset: number): [number, number] => {
 // 构造 Minecraft 数据包（数据压缩 + 添加长度字段）
 export const buildPacket = async (
 	packet: Packet | PacketWriter | PacketReader,
-	compressionThreshold = -1
+	compressionThreshold = -1,
 ): Promise<Buffer> => {
 	const buffer =
 		packet instanceof PacketReader
 			? packet.buffer
 			: packet instanceof PacketWriter
-			? packet.buffer.subarray(0, packet.offset)
-			: packet
+				? packet.buffer.subarray(0, packet.offset)
+				: packet
 
 	if (compressionThreshold <= 0) {
 		// No compression
@@ -63,7 +63,7 @@ export const buildPacket = async (
 
 			return Buffer.concat([
 				encodeVarInt(
-					compressed.byteLength + encodeVarInt(uncompressedLength).length
+					compressed.byteLength + encodeVarInt(uncompressedLength).length,
 				), // Total length
 				encodeVarInt(uncompressedLength), // Uncompressed length
 				compressed, // Compressed data
@@ -135,16 +135,14 @@ export class MinecraftPacketStream {
 				} else {
 					zlib.inflate(
 						buffer,
-						{
-							finishFlush: zlib.constants.Z_SYNC_FLUSH,
-						},
+						{ finishFlush: zlib.constants.Z_SYNC_FLUSH },
 						(error, decompressed) => {
 							if (error) {
 								throw error
 							} else {
 								this.queue.push(decompressed) // 将解压后的包推送到队列
 							}
-						}
+						},
 					)
 				}
 			}
@@ -180,3 +178,5 @@ export class MinecraftPacketStream {
 		return new PacketReader(this.queue.shift()!)
 	}
 }
+
+export { PacketWriter }

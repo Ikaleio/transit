@@ -19,16 +19,8 @@ declare global {
 // Bun build 不允许顶层 await，因此使用 async function 包裹
 async function main() {
 	globalThis.logger = pino(
-		{
-			customLevels: {
-				packet: 5,
-			},
-		},
-		pretty({
-			colorize: true,
-			translateTime: true,
-			ignore: 'pid,hostname',
-		}),
+		{ customLevels: { packet: 5 } },
+		pretty({ colorize: true, translateTime: true, ignore: 'pid,hostname' }),
 	)
 
 	// setInterval(() => {
@@ -45,11 +37,7 @@ async function main() {
 			logger.warn(`Config file not found, creating a new one...`)
 			const defaultConfig = ConfigSchema.parse({
 				routes: [
-					{
-						host: '*',
-						destination: 'mc.hypixel.net',
-						rewriteHost: true,
-					},
+					{ host: '*', destination: 'mc.hypixel.net', rewriteHost: true },
 				],
 			})
 			const { motd, flags, ...defaultConfigToSave } = defaultConfig
@@ -77,10 +65,7 @@ async function main() {
 	globalThis.pluginLoader = new PluginLoader()
 	pluginLoader.loadPlugins('./plugins', config)
 
-	minecraftProxy.reload({
-		inbound: config.inbound,
-		flags: config.flags,
-	})
+	minecraftProxy.reload({ inbound: config.inbound, flags: config.flags })
 
 	// 监听配置文件变化
 	let reloadLock = false
@@ -106,10 +91,7 @@ async function main() {
 				config = resultLoadConfig.value!
 
 				logger.level = config.logger.level
-				minecraftProxy.reload({
-					inbound: config.inbound,
-					flags: config.flags,
-				})
+				minecraftProxy.reload({ inbound: config.inbound, flags: config.flags })
 				await pluginLoader.loadPlugins('./plugins', config)
 
 				logger.info('Config file reloaded & validated')

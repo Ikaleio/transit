@@ -36,6 +36,7 @@
 	"scripts": {
 		"start": "bun run src/index.ts",
 		"dev": "bun run --hot src/index.ts",
+		"bench": "bun run benchmark/benchmark.ts",
 		"build-linux-x64": "bun build --compile --sourcemap --target=bun-linux-x64-modern src/index.ts --outfile bin/transit-linux-x64",
 		"build-linux-arm64": "bun build --compile --sourcemap --target=bun-linux-arm64 src/index.ts --outfile bin/transit-linux-arm64",
 		"build-darwin-x64": "bun build --compile --sourcemap --target=bun-darwin-x64 src/index.ts --outfile bin/transit-darwin-x64",
