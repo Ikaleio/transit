@@ -49,6 +49,8 @@ export type C2RSocketData = {
 	proxyProtocol: boolean | null // 是否启用 Proxy Protocol v2 出站
 	FML: 0 | 1 | 2 | null // 是否为 Forge Mod Loader (2) 客户端，0 代表非 FML
 	timeouts: NodeJS.Timer[] // 存储所有的 timeout
+	isConnectingToServer: boolean, // 标记是否正在连接服务器
+	lastActivityTime: number, // 最后活动时间
 }
 
 // Relay to server socket data
@@ -167,6 +169,10 @@ export class MinecraftProxy {
 							highWaterMark: highWaterMark,
 						})
 						clientSocket.data.remote = remoteSocket
+						
+						// 连接成功，标记连接已完成
+						clientSocket.data.isConnectingToServer = false;
+						
 						logger.debug(
 							`${colorHash(clientSocket.data.connId)} Connected to ${
 								clientSocket.data.remoteHost
@@ -178,6 +184,18 @@ export class MinecraftProxy {
 							)} C2S (Handshake) ${packetToHex(initPacket)}`,
 						)
 						writeToBuffer(clientSocket.data.remote, initPacket)
+						
+						// 添加服务器连接超时，10秒
+						const serverConnectTimeout = setTimeout(() => {
+							// 如果仍在连接状态且未进入Play状态
+							if (clientSocket.data.isConnectingToServer && clientSocket.data.state !== State.Play) {
+								logger.warn(
+									`${colorHash(clientSocket.data.connId)} Server connect timeout (10s)`,
+								)
+								clientSocket.end()
+							}
+						}, 10000);
+						clientSocket.data.timeouts.push(serverConnectTimeout);
 					},
 					close: remoteSocket => {
 						remoteSocket.data.sendBuffer.end()
@@ -219,6 +237,8 @@ export class MinecraftProxy {
 				},
 			})
 		} catch (e) {
+			// 连接失败，重置标记
+			clientSocket.data.isConnectingToServer = false;
 			logger.error(
 				e,
 				`${colorHash(clientSocket.data.connId)} remote connect error, catched outside of socket`,
@@ -250,6 +270,8 @@ export class MinecraftProxy {
 						proxyProtocol: null,
 						FML: null,
 						timeouts: [],
+						isConnectingToServer: false,
+						lastActivityTime: Date.now(),
 					}
 
 					logger.debug(
@@ -266,16 +288,26 @@ export class MinecraftProxy {
 					if (!this.inbound.proxyProtocol)
 						clientSocket.data.originIP = IP.parse(clientSocket.remoteAddress)
 
-					// 若 3 秒内未成功读取握手包，则断开连接
-					const handshakeTimeout = setTimeout(() => {
-						if (clientSocket.data.state === null) {
-							logger.warn(
-								`${colorHash(clientSocket.data.connId)} Handshake timeout`,
-							)
-							clientSocket.end()
+					// 添加一个通用的10秒无活动超时检查
+					const inactivityTimeout = setInterval(() => {
+						const now = Date.now();
+						const idleTime = now - clientSocket.data.lastActivityTime;
+						
+						// 如果客户端正在连接服务器或已进入Play状态，不进行超时检查
+						if (clientSocket.data.isConnectingToServer || clientSocket.data.state === State.Play) {
+							return;
 						}
-					}, 3000)
-					clientSocket.data.timeouts.push(handshakeTimeout)
+						
+						// 如果超过10秒没有活动，则断开连接
+						if (idleTime > 10000) {
+							logger.warn(
+								`${colorHash(clientSocket.data.connId)} Inactivity timeout (${Math.floor(idleTime/1000)}s)`,
+							)
+							clientSocket.end();
+							clearInterval(inactivityTimeout);
+						}
+					}, 1000);
+					clientSocket.data.timeouts.push(inactivityTimeout);
 				},
 				close: async clientSocket => {
 					clientSocket.data.sendBuffer.end()
@@ -299,6 +331,9 @@ export class MinecraftProxy {
 					}
 				},
 				data: async (clientSocket, buffer: Buffer) => {
+					// 更新最后活动时间
+					clientSocket.data.lastActivityTime = Date.now();
+					
 					logger.packet(
 						`${colorHash(clientSocket.data.connId)} C2S (${
 							buffer.byteLength
@@ -442,7 +477,8 @@ export class MinecraftProxy {
 							if (nextState === State.Login) {
 								// 若 3 秒内未成功读取登录包，则断开连接
 								const loginTimeout = setTimeout(() => {
-									if (clientSocket.data.state !== State.Play) {
+									// 如果客户端还在Login状态，但没有开始连接服务器，则判断为超时
+									if (clientSocket.data.state === State.Login && !clientSocket.data.isConnectingToServer) {
 										logger.warn(
 											`${colorHash(clientSocket.data.connId)} Login timeout`,
 										)
@@ -544,7 +580,8 @@ export class MinecraftProxy {
 								}:${clientSocket.data.remotePort}`,
 							)
 
-							// 创建到目标服务器的连接
+							// 设置正在连接服务器标记
+							clientSocket.data.isConnectingToServer = true;
 
 							let headers: Buffer = Buffer.alloc(0)
 
