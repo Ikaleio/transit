@@ -81,3 +81,7 @@ Transit 首次启动时会在工作目录生成配置文件 `config.yml`，并�
 ## 协议
 
 该项目基于 MIT 协议开源 - 详见 LICENSE 文件。
+
+## 赞助者
+
+由 [ForZTN](https://sponsorship.forztn.com/github.com/Ikaleio/transit)提供赞助。
