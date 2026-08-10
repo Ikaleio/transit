@@ -81,3 +81,7 @@ You can find detailed information in our [online documentation](https://transit.
 ## License
 
 This project is open-sourced under the MIT License - see the LICENSE file for details.
+
+## Sponsors
+
+Sponsored by [ForZTN](https://sponsorship.forztn.com/github.com/Ikaleio/transit).
